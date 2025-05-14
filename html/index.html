@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Anime Finder</title>
+		<style>
+			body, form{
+				margin: 0 auto;
+				max-width:800px;
+				overflow-x:hidden;
+			}
+			fieldset{
+				display: flex;
+			}
+			input#number{
+				flex-grow:100;
+				margin: 0 20px;
+			}
+			img#banner{
+				width: 500px;
+			}
+			div#banner-container{
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+		</style>
+	</head>
+	<body>
+		<form action="search" method="get">
+			<div id="banner-container">
+				<img src="../images/banner.jpg" id="banner" alt="Anime Search" />
+			</div>
+			<fieldset>
+				<label for="number">Enter a number 2-100:</label>
+				<input id="number" name="number" type="text" />
+				<input type="submit" value="Search" />
+			</fieldset>
+		</form>
+	</body>
+</html>
