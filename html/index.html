@@ -18,6 +18,12 @@
 			img#banner{
 				width: 500px;
 			}
+			div#main{
+				height: 100vh;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
 			div#banner-container{
 				display: flex;
 				align-items: center;
@@ -26,15 +32,17 @@
 		</style>
 	</head>
 	<body>
-		<form action="search" method="get">
-			<div id="banner-container">
-				<img src="../images/banner.jpg" id="banner" alt="Anime Search" />
-			</div>
-			<fieldset>
-				<label for="number">Enter a number 2-100:</label>
-				<input id="number" name="number" type="text" />
-				<input type="submit" value="Search" />
-			</fieldset>
-		</form>
+		<div id="main">
+			<form action="search" method="get">
+				<div id="banner-container">
+					<img src="../images/banner.jpg" id="banner" alt="Anime Search" />
+				</div>
+				<fieldset>
+					<label for="number">Enter a number 2-100:</label>
+					<input id="number" name="number" type="text" />
+					<input type="submit" value="Search" />
+				</fieldset>
+			</form>
+		</div>
 	</body>
 </html>
