@@ -147,7 +147,7 @@ function redirect_to_anime_list(num, req, res){
 function makeAnimeCall(req, res) {
     const options = {
         hostname: 'api.myanimelist.net',
-        path: `/v2/anime/ranking?ranking_type=all&limit=${num}`,
+        path: `/v2/anime/suggestions?limit=${num}`,
         method: 'GET',
         headers: {
             "Authorization": `Bearer ${access_token}`,
