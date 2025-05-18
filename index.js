@@ -15,9 +15,6 @@ const {
     response_type,
 } = require("./auth/credentials-anime.json")
 
-console.log(client_id)
-console.log(response_type)
-
 const server = http.createServer();
 
 let num = null
@@ -39,7 +36,6 @@ server.on("request", function(req, res) {
         banner.pipe(res)
     }
     else if(req.url.startsWith('/search-result')){
-        console.log("in search-result")
         makeAnimeCall(req, res)
     }
     else if(req.url.startsWith("/search")){
@@ -47,13 +43,14 @@ server.on("request", function(req, res) {
         num = parseInt(url_object.searchParams.get("number"))
         if(Number.isInteger(num) && num >= 2 && num <= 100){
             redirect_to_anime_list(num, req, res)
+        }else{
+            res.writeHead(302, { Location: "/" });
+            res.end();
         }
     }
     else if(req.url.startsWith("/callback")){
         const query = url.parse(req.url, true).query;
         const { code } = query;
-
-        console.log("received code")
 
         const post_data = querystring.stringify({
             grant_type: "authorization_code",
@@ -78,7 +75,6 @@ server.on("request", function(req, res) {
             let body = "";
             token_res.on("data", chunk => body += chunk);
             token_res.on("end", () => {
-                console.log("Access token response:", body);
 
                 //cache
                 const tokenData = JSON.parse(body);
@@ -161,11 +157,9 @@ function makeAnimeCall(req, res) {
         list_res.on("end", () => {
             try {
                 const animeList = JSON.parse(body);
-                console.log("Anime List Response:", animeList);
 
                 let index = Math.floor(Math.random() * num);
 
-                console.log(index)
                 const animeJSON = JSON.parse(body);
                 let anime = animeJSON.data[index].node
                 makeGroqCall(anime, req, res)

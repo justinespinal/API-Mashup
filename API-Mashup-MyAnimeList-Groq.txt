@@ -1,0 +1,63 @@
+
+title MyAnimeList 3LO Auth 2.0
+
+participant MyAnimeList API[A]
+participant User
+participant Server
+participant MyAnimeList API[B]
+participant Groq API
+
+entryspacing 1.0
+note over User: Browser requests \nroot of site
+User->(1)Server: GET /\nHost: localhost:8080
+Server->(1)User: 200 OK + index.html (form to fill out)
+
+note over User: User fills out form (supplies data: **number**)
+
+User->(1)Server: GET /search?number=5\nHost: localhost:8080
+
+note over Server: Validates input of **number** (2–100)\nIf invalid, redirect to **root** ("/")
+
+Server->(1)User: 302 Temporary Redirect\nLocation: https://myanimelist.net/v1/oauth2/authorize?client_id=${client_id}\n&response_type=code\n&redirect_uri=http://localhost:8080/callback\n&code_challenge=${code_challenge}\n&code_challenge_method=plain
+
+note over User: (Browser sees 302,\nCreates a new GET to MyAnimeList API\nforwarding {client_id, redirect_uri, code_challenge, code_challenge_method, response_type})
+
+alt This can be skipped if already logged in & permission granted (auth cached)
+  User->(1)MyAnimeList API[A]: GET /v1/oauth2/authorize?client_id=${client_id}\n&response_type=code\n&redirect_uri=http://localhost:8080/callback\n&code_challenge=${code_challenge}\n&code_challenge_method=plain\nHost: myanimelist.net
+  MyAnimeList API[A]->(1)User: 200 OK + login form
+  User->(1)MyAnimeList API[A]: User logs in
+  MyAnimeList API[A]->(1)User: 200 OK + ask to grant permissions
+  User->(1)MyAnimeList API[A]: User says yes
+end
+
+MyAnimeList API[A]->(1)User: 302 Temporary Redirect\nLocation: http://localhost:8080/callback?code=${code}
+
+note over User: (Browser sees 302,\nCreates GET /callback?code=${code})
+
+User->(1)Server: GET /callback?code=${code}\nHost: localhost:8080
+
+note over Server: Uses **code** to call MyAnimeList API[B] for access token
+
+Server->(1)MyAnimeList API[B]: POST /v1/oauth2/token\nHost: myanimelist.net\n+ {client_id, client_secret, code, code_verifier, grant_type}
+
+note right of MyAnimeList API[B]: Five components tell the API\n**client_id**: identifies the app\n**client_secret**: app’s password\n**code**: user’s permission grant\n**code_verifier**: proves the earlier code_challenge\n**grant_type**: OAuth flow (“authorization_code”)
+
+MyAnimeList API[B]->(1)Server: 200 OK + **access_token**
+
+Server->(1)MyAnimeList API[B]: POST /v2/anime/suggestions?limit=${number}\nHost: api.myanimelist.net\nAuthorization: Bearer {**access_token**}
+
+MyAnimeList API[B]->(1)Server: 200 OK + **list of top {number} suggested animes**
+
+note over Server: Pick a random index 0–(**number**–1) from that list.\nExtract and save title & image of that anime
+
+Server->(1)Groq API: POST /openai/v1/chat/completions\nHost: api.groq.com\nAuthorization: Bearer {**groq_auth_token**}\n+post_data: {\n    model: meta-llama/llama-4-scout-17b-16e-instruct\n    messages: [{\n      role: user\n      content: Give me a detailed description of the anime: ${title}. Do not add markdown characters.\n    }]\n}
+
+note right of Groq API: Generates description via meta-llama model
+
+Groq API->(1)Server: Returns detailed description
+
+note over Server: Build HTML page showing the\nanime’s image next to Groq’s description
+
+Server->(1)User: 200 OK (displays image + description)
+
+note over User: done!
