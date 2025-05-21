@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 const http = require('http');
 const https = require('https')
 const querystring = require('querystring')
@@ -81,7 +82,7 @@ server.on("request", function(req, res) {
                 access_token = tokenData.access_token;
 
                 const expiration = new Date()
-	            expiration.setHours(expiration.getHours() + 1)
+	            expiration.setSeconds(expiration.getSeconds() + tokenData.expires_in)
                 tokenData.expiration = expiration
 
                 const outPath = 'cache/auth.json';
@@ -110,35 +111,57 @@ server.on("request", function(req, res) {
     }
 })
 
-function redirect_to_anime_list(num, req, res){
-    const authentication_cache = './cache/auth.json';
-    let cache_valid = false
-    if(fs.existsSync(authentication_cache)){
-        cached_auth = require(authentication_cache)
-        if(new Date(cached_auth.expiration) > Date.now()){
-            access_token = cached_auth.access_token
-            cache_valid = true
+function redirect_to_anime_list(num, req, res) {
+    const cachePath = path.join(__dirname, 'cache', 'auth.json');
+    let cacheValid = false;
+  
+    if (fs.existsSync(cachePath)) {
+      try {
+        // read & parse raw JSON each time (avoids require-caching)
+        const raw = fs.readFileSync(cachePath, 'utf8');
+        const cachedAuth = JSON.parse(raw);
+  
+        // make sure it’s actually populated
+        if (cachedAuth && Object.keys(cachedAuth).length) {
+          const expiresAt = new Date(cachedAuth.expiration);
+          if (expiresAt > new Date()) {
+            // still fresh!
+            access_token = cachedAuth.access_token;
+            cacheValid = true;
+          } else {
+            // expired → delete cache so we force re-auth
+            fs.unlinkSync(cachePath);
+          }
+        } else {
+          // empty JSON → delete and re-auth
+          fs.unlinkSync(cachePath);
         }
+      } catch (err) {
+        // on any read/parse error, clear bad cache
+        if (fs.existsSync(cachePath)) fs.unlinkSync(cachePath);
+      }
     }
-    if(cache_valid){
-        res.writeHead(302, { Location: "/search-result" });
-        res.end();
-    }else{
-        const authorization_endpoint = "https://myanimelist.net/v1/oauth2/authorize"
-        
-        const queryParams = querystring.stringify({
-            response_type: "code",
-            client_id,
-            redirect_uri: "http://localhost:8080/callback", // Must match exactly with your registered callback
-            code_challenge: code_challenge, // same as code_verifier if using plain
-            code_challenge_method: "plain", // MAL only supports 'plain'
-        });
-
-        const redirectUrl = `${authorization_endpoint}?${queryParams}`
-
-        res.writeHead(302, { Location: redirectUrl }).end();
+  
+    if (cacheValid) {
+      // we have a valid token → go straight to search-result
+      res.writeHead(302, { Location: '/search-result' });
+      return res.end();
     }
-}
+  
+    // otherwise, kick off MAL OAuth
+    const authorization_endpoint = 'https://myanimelist.net/v1/oauth2/authorize';
+    const queryParams = querystring.stringify({
+      response_type: 'code',
+      client_id,
+      redirect_uri: 'http://localhost:8080/callback', // must exactly match your app settings
+      code_challenge: code_challenge,                // plain → same as code_verifier
+      code_challenge_method: 'plain',
+    });
+  
+    const redirectUrl = `${authorization_endpoint}?${queryParams}`;
+    res.writeHead(302, { Location: redirectUrl });
+    res.end();
+  }
 
 function makeAnimeCall(req, res) {
     const options = {
@@ -156,8 +179,6 @@ function makeAnimeCall(req, res) {
         list_res.on("data", chunk => body += chunk);
         list_res.on("end", () => {
             try {
-                const animeList = JSON.parse(body);
-
                 let index = Math.floor(Math.random() * num);
 
                 const animeJSON = JSON.parse(body);
